@@ -47,10 +47,11 @@ class ExpertSelector:
         )
     """
 
-    def __init__(self, project_root: Path):
+    def __init__(self, project_root: Path, project_id: str = None):
         self.project_root = project_root.resolve()
+        self.project_id = project_id
         self.knowledge_store = KnowledgeStore(project_root)
-        self.expert_loader = ExpertLoader(project_root)
+        self.expert_loader = ExpertLoader(project_root, project_id=project_id)
 
         # Load or build index
         self._index: Optional[ExpertIndex] = None

@@ -652,12 +652,30 @@ class ExpertDefinition(Base):
     """
     Stores expert prompts and trigger conditions.
     Replaces: .orchestrator/agents/experts/*.md files
+
+    Supports both global (orchestrator-bundled) and project-specific experts:
+    - scope='global': Bundled experts, project_id=NULL
+    - scope='project': Project-specific experts, project_id set
     """
     __tablename__ = "expert_definitions"
 
     id = Column(Integer, primary_key=True)
-    name = Column(String(100), nullable=False, unique=True, index=True)  # python, fastapi
+    name = Column(String(100), nullable=False, index=True)  # python, fastapi
     version = Column(String(20), default="1.0")
+
+    # Scope: global (bundled) or project (project-specific)
+    scope = Column(String(20), default="global", nullable=False, index=True)
+
+    # Project association (NULL for global experts)
+    project_id = Column(
+        String(36),
+        ForeignKey("projects.project_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True
+    )
+
+    # Soft delete support for project archive
+    is_active = Column(Boolean, default=True, nullable=False, index=True)
 
     # Metadata (from YAML frontmatter)
     description = Column(Text)
@@ -680,6 +698,11 @@ class ExpertDefinition(Base):
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Composite unique constraint: expert name unique per project (NULL project_id = global)
+    __table_args__ = (
+        UniqueConstraint('name', 'project_id', name='uq_expert_name_project'),
+    )
 
 
 class OrchestratorConfig(Base):

@@ -476,6 +476,19 @@ def _project_info(repo, name: Optional[str]) -> int:
     if project.get('indexed_at'):
         print(f"  Indexed:     {project['indexed_at']}")
 
+    # Show project-specific experts
+    try:
+        from db.repositories.expert_definition import get_expert_definition_repository
+        expert_repo = get_expert_definition_repository()
+        experts = expert_repo.list_by_project(project['id'])
+        if experts:
+            print(f"\n  Project Experts: {len(experts)}")
+            for expert in experts:
+                status = "" if expert.is_active else " (inactive)"
+                print(f"    - {expert.name} ({expert.expert_type}){status}")
+    except Exception:
+        pass
+
     return 0
 
 
@@ -487,8 +500,19 @@ def _project_archive(repo, name: str) -> int:
         print(f"Error: Project not found: {name}")
         return 1
 
+    # Deactivate project experts first
+    expert_count = 0
+    try:
+        from db.repositories.expert_definition import get_expert_definition_repository
+        expert_repo = get_expert_definition_repository()
+        expert_count = expert_repo.deactivate_by_project(project['id'])
+    except Exception:
+        pass
+
     repo.archive(project['id'])
     print(f"Archived: {project['name']}")
+    if expert_count > 0:
+        print(f"  Deactivated {expert_count} project expert(s)")
 
     return 0
 
@@ -502,7 +526,19 @@ def _project_restore(repo, name: str) -> int:
         return 1
 
     repo.restore(project['id'])
+
+    # Restore project experts
+    expert_count = 0
+    try:
+        from db.repositories.expert_definition import get_expert_definition_repository
+        expert_repo = get_expert_definition_repository()
+        expert_count = expert_repo.activate_by_project(project['id'])
+    except Exception:
+        pass
+
     print(f"Restored: {project['name']}")
+    if expert_count > 0:
+        print(f"  Restored {expert_count} project expert(s)")
 
     return 0
 
