@@ -189,6 +189,9 @@ async def validate_path(request: ValidatePathRequest):
 
     try:
         path = Path(path_str)
+
+        # Check if path is absolute
+        is_absolute = path.is_absolute()
         exists = path.exists()
         is_directory = path.is_dir() if exists else False
 
@@ -222,13 +225,19 @@ async def validate_path(request: ValidatePathRequest):
         # Determine if valid (exists, is directory, not already registered)
         valid = exists and is_directory and not already_registered
 
+        # Build helpful error messages
         error = None
         if not exists:
-            error = "Path does not exist"
+            if not is_absolute:
+                # Path is relative and doesn't exist
+                error = f"Path does not exist. Please provide a full absolute path (e.g., 'C:\\Users\\YourName\\Projects\\MyProject' or '/home/user/projects/myproject')."
+            else:
+                # Path is absolute but doesn't exist
+                error = f"Path does not exist: '{path_str}'. Please verify the path is correct and the directory exists."
         elif not is_directory:
-            error = "Path is not a directory"
+            error = f"Path exists but is not a directory: '{path_str}'. Please select a folder, not a file."
         elif already_registered:
-            error = "Path is already registered as a project"
+            error = "This directory is already registered as a project."
 
         return ValidatePathResponse(
             valid=valid,
@@ -239,12 +248,25 @@ async def validate_path(request: ValidatePathRequest):
         )
 
     except Exception as e:
+        # Handle common path-related exceptions with helpful messages
+        error_msg = str(e)
+
+        # Detect incomplete or malformed paths
+        if "invalid" in error_msg.lower() or "cannot" in error_msg.lower():
+            return ValidatePathResponse(
+                valid=False,
+                exists=False,
+                is_directory=False,
+                already_registered=False,
+                error=f"Invalid path format. Please provide a full absolute path (e.g., 'C:\\Users\\YourName\\Projects\\MyProject' on Windows or '/home/user/projects/myproject' on Linux/Mac). Error: {error_msg}"
+            )
+
         return ValidatePathResponse(
             valid=False,
             exists=False,
             is_directory=False,
             already_registered=False,
-            error=f"Invalid path: {str(e)}"
+            error=f"Unable to validate path: {error_msg}. Please ensure you provide a complete absolute path."
         )
 
 
