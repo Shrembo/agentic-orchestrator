@@ -54,9 +54,9 @@ class ExpertLoader:
         matched = loader.find_by_keywords(["auth", "jwt"])
     """
 
-    def __init__(self, project_root: Path, project_slug: str = None):
+    def __init__(self, project_root: Path, project_id: str = None):
         self.project_root = project_root
-        self.project_slug = project_slug
+        self.project_id = project_id  # Project UUID for loading project-specific experts
         self.console = Console()
         self._repo = None
 
@@ -68,15 +68,23 @@ class ExpertLoader:
             self._repo = get_expert_definition_repository()
         return self._repo
 
-    def discover_experts(self) -> List[ExpertInfo]:
+    def discover_experts(self, include_project: bool = True) -> List[ExpertInfo]:
         """
         Discover all available expert agents from database.
 
+        Args:
+            include_project: If True and project_id is set, include project-specific experts.
+
         Returns:
-            List of ExpertInfo objects
+            Combined list of global + project experts (if applicable).
         """
         experts = []
-        db_experts = self.repo.list_all()
+
+        # Use combined pool if project_id is set, otherwise global only
+        if include_project and self.project_id:
+            db_experts = self.repo.list_combined(self.project_id)
+        else:
+            db_experts = self.repo.list_global()
 
         for db_expert in db_experts:
             try:
@@ -99,13 +107,24 @@ class ExpertLoader:
         """
         Load a specific expert agent from database.
 
+        Checks project-specific first (if project_id set), then global.
+
         Args:
             name: Expert name (e.g., "python", "fastapi")
 
         Returns:
             Agent instance or None if not found
         """
-        expert_def = self.repo.get_by_name(name)
+        expert_def = None
+
+        # Check project-specific first if we have a project_id
+        if self.project_id:
+            expert_def = self.repo.get_by_name(name, project_id=self.project_id)
+
+        # Fall back to global
+        if not expert_def:
+            expert_def = self.repo.get_by_name(name, project_id=None)
+
         if not expert_def:
             return None
 
@@ -119,13 +138,24 @@ class ExpertLoader:
         """
         Get raw expert system prompt content.
 
+        Checks project-specific first (if project_id set), then global.
+
         Args:
             name: Expert name
 
         Returns:
             System prompt string or None
         """
-        expert_def = self.repo.get_by_name(name)
+        expert_def = None
+
+        # Check project-specific first if we have a project_id
+        if self.project_id:
+            expert_def = self.repo.get_by_name(name, project_id=self.project_id)
+
+        # Fall back to global
+        if not expert_def:
+            expert_def = self.repo.get_by_name(name, project_id=None)
+
         if not expert_def:
             return None
         return expert_def.system_prompt

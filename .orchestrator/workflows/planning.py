@@ -32,6 +32,7 @@ from core.expert_selector import ExpertSelector
 from core.staleness_checker import StalenessChecker
 from core.rule_checker import RuleChecker
 from db import get_plan_repository, get_build_state_repository
+from db.project_context import project_context
 from portal.services.token_usage_signal import get_token_usage_signal, TokenUsageSignal
 
 
@@ -58,7 +59,11 @@ class PlanningWorkflow(Workflow):
 
         # Knowledge and expert systems
         self.knowledge_store = KnowledgeStore(project_root)
-        self.expert_selector = ExpertSelector(project_root)
+        # Pass project_id to include project-specific experts in selection pool
+        self.expert_selector = ExpertSelector(
+            project_root,
+            project_id=project_context.get_project_id()
+        )
         self.staleness_checker = StalenessChecker(project_root)
 
         # Token usage signal for analytics

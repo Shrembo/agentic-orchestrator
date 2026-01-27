@@ -304,13 +304,13 @@ class ProjectService:
         except Exception:
             pass
 
-        # Count experts
+        # Count project-specific experts
         expert_count = 0
         try:
-            from core.expert_loader import ExpertLoader
-            loader = ExpertLoader(project_path, project_slug=project['slug'])
-            experts = loader.discover_experts()
-            expert_count = len(experts)
+            from db.repositories.expert_definition import get_expert_definition_repository
+            expert_repo = get_expert_definition_repository()
+            project_experts = expert_repo.list_by_project(project['id'])
+            expert_count = len(project_experts)
         except Exception:
             pass
 
@@ -322,27 +322,55 @@ class ProjectService:
         )
 
     def archive(self, slug_or_id: str) -> Optional[Dict[str, Any]]:
-        """Archive a project."""
+        """Archive a project and soft-delete its experts."""
         project = self.repository.get_by_slug_or_id(slug_or_id)
         if not project:
             return None
 
-        self.repository.archive(project.project_id)
-        logger.info(f"Archived project: {project.name}")
+        project_id = project.project_id
+        project_name = project.name
 
-        updated = self.repository.get_by_id(project.project_id)
+        # Archive the project
+        self.repository.archive(project_id)
+        logger.info(f"Archived project: {project_name}")
+
+        # Soft-delete project experts
+        try:
+            from db.repositories.expert_definition import get_expert_definition_repository
+            expert_repo = get_expert_definition_repository()
+            deactivated_count = expert_repo.deactivate_by_project(project_id)
+            if deactivated_count > 0:
+                logger.info(f"Deactivated {deactivated_count} project experts")
+        except Exception as e:
+            logger.warning(f"Failed to deactivate project experts: {e}")
+
+        updated = self.repository.get_by_id(project_id)
         return self.repository.to_registry_dict(updated) if updated else None
 
     def restore(self, slug_or_id: str) -> Optional[Dict[str, Any]]:
-        """Restore an archived project."""
+        """Restore an archived project and its experts."""
         project = self.repository.get_by_slug_or_id(slug_or_id)
         if not project:
             return None
 
-        self.repository.restore(project.project_id)
-        logger.info(f"Restored project: {project.name}")
+        project_id = project.project_id
+        project_name = project.name
 
-        updated = self.repository.get_by_id(project.project_id)
+        # Restore the project
+        self.repository.restore(project_id)
+        logger.info(f"Restored project: {project_name}")
+
+        # Restore project experts
+        try:
+            from db.repositories.expert_definition import get_expert_definition_repository
+            expert_repo = get_expert_definition_repository()
+            activated_count = expert_repo.activate_by_project(project_id)
+            if activated_count > 0:
+                logger.info(f"Restored {activated_count} project experts")
+        except Exception as e:
+            logger.warning(f"Failed to restore project experts: {e}")
+
+        updated = self.repository.get_by_id(project_id)
         return self.repository.to_registry_dict(updated) if updated else None
 
     def remove(

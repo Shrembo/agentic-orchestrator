@@ -21,6 +21,7 @@ from .projects import router as projects_router
 from .agent_definitions import router as agent_definitions_router
 from .expert_definitions import router as expert_definitions_router
 from .orchestrator_config import router as orchestrator_config_router
+from .project_experts import router as project_experts_router
 
 __all__ = [
     "plans_router",
@@ -41,4 +42,5 @@ __all__ = [
     "agent_definitions_router",
     "expert_definitions_router",
     "orchestrator_config_router",
+    "project_experts_router",
 ]

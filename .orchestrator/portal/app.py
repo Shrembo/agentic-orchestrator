@@ -46,6 +46,7 @@ from portal.routes import (
     agent_definitions_router,
     expert_definitions_router,
     orchestrator_config_router,
+    project_experts_router,
 )
 from portal.middleware.project_context import ProjectContextMiddleware
 from portal.routes.health import set_version
@@ -184,6 +185,7 @@ app.include_router(projects_router)
 app.include_router(agent_definitions_router)
 app.include_router(expert_definitions_router)
 app.include_router(orchestrator_config_router)
+app.include_router(project_experts_router)
 
 
 def run_portal(host: str = "127.0.0.1", port: int = 8000):

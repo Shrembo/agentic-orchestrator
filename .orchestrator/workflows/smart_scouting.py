@@ -26,6 +26,7 @@ from rich.prompt import Prompt, Confirm
 
 from core import Agent, Workflow, WorkflowResult, get_agent_config
 from core.domain_scanner import DomainScanner, detect_project_domains
+from db.project_context import project_context
 from core.knowledge_store import (
     KnowledgeStore,
     ScanCriteria,
@@ -902,7 +903,11 @@ Remember: Do NOT scan .orchestrator/ folder."""
         try:
             from core.expert_loader import ExpertLoader, ExpertType
 
-            loader = ExpertLoader(self.project_root)
+            # Pass project_id to include project-specific experts
+            loader = ExpertLoader(
+                self.project_root,
+                project_id=project_context.get_project_id()
+            )
 
             for tech in all_langs | all_frameworks:
                 tech_lower = tech.lower().replace(".", "-")

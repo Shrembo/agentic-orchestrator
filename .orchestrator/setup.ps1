@@ -61,6 +61,7 @@ Write-Host "    - Install required tools (UV, Node.js, Claude CLI)" -ForegroundC
 Write-Host "    - Load database config from .env (must exist)" -ForegroundColor Gray
 Write-Host "    - Install 'orch' command globally" -ForegroundColor Gray
 Write-Host "    - Initialize the orchestrator database" -ForegroundColor Gray
+Write-Host "    - Run database migrations (Alembic)" -ForegroundColor Gray
 Write-Host "    - Migrate agents/experts/config to database" -ForegroundColor Gray
 Write-Host "    - Register this project as 'self'" -ForegroundColor Gray
 Write-Host ""
@@ -386,6 +387,25 @@ if ($orchExe) {
 } else {
     Write-Info "Running initialization via uv..."
     uv run python cli.py init 2>&1
+}
+
+# Run Alembic migrations to ensure schema is up to date
+Write-Info "Running database migrations (Alembic)..."
+try {
+    $alembicResult = uv run alembic -c db/alembic.ini upgrade head 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Write-Success "Database schema up to date"
+    } else {
+        # Check if it's just "no migrations to run" vs actual error
+        if ($alembicResult -match "already up to date|no migrations") {
+            Write-Success "Database schema already up to date"
+        } else {
+            Write-Warn "Alembic migration returned: $alembicResult"
+        }
+    }
+} catch {
+    Write-Warn "Could not run Alembic migrations: $_"
+    Write-Info "You can run manually: cd .orchestrator && uv run alembic -c db/alembic.ini upgrade head"
 }
 
 # Migrate agents, experts, and config from files to database
